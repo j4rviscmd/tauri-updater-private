@@ -3,14 +3,7 @@
   "release-type": "rust",
   "packages": {
     ".": {
-      "package-name": "tauri-updater-private",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.version"
-        }
-      ]
+      "package-name": "tauri-updater-private"
     }
   }
 }

@@ -1,7 +1,7 @@
 name: publish
 
 # release-please stops at creating the GitHub release; this workflow
-# publishes to crates.io and npm when that release goes out.
+# publishes the crate to crates.io when that release goes out.
 on:
   release:
     types: [published]
@@ -24,20 +24,3 @@ jobs:
       - run: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
-  npm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      - run: npm ci
-
-      # prepack script builds dist-js into the tarball.
-      - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
