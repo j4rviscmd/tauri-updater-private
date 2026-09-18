@@ -1,3 +1,6 @@
 /target
 /*.log
 /.worktrees/
+/site/node_modules/
+/site/dist/
+/site/.astro/

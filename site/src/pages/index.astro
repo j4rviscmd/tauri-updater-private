@@ -1,0 +1,599 @@
+---
+// Landing page for tauri-updater-private. Single page, no client-side JS.
+// Content mirrors README.md — keep both in sync when the plugin changes.
+
+const REPO = 'https://github.com/j4rviscmd/tauri-updater-private';
+
+// Code samples as template literals (avoids Astro brace-escaping in markup).
+// `dim()` escapes HTML (samples contain `<...>` placeholders) and wraps
+// comment lines in a span so blocks get light syntax without a highlighter.
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const dim = (code: string) =>
+  code
+    .split('\n')
+    .map((line) => {
+      const html = esc(line);
+      return /^\s*(\/\/|#)/.test(line)
+        ? `<span class="cmt">${html}</span>`
+        : html;
+    })
+    .join('\n');
+
+const conf = dim(`{
+  "plugins": {
+    "updater": {
+      "pubkey": "<minisign public key>",
+      "endpoints": [
+        "https://raw.githubusercontent.com/{owner}/{repo}/main/latest.json"
+      ]
+    }
+  }
+}`);
+
+const rust = dim(`// src-tauri/src/lib.rs
+.builder(|b| b.plugin(tauri_updater_private::updater_builder()?.build()))`);
+
+const js = dim(`import { check } from '@tauri-apps/plugin-updater';
+const update = await check();        // Authorization header applied automatically
+await update?.downloadAndInstall();  // ...also on the asset download`);
+
+const release = dim(`- uses: tauri-apps/tauri-action@v0
+  env:
+    TAURI_SIGNING_PRIVATE_KEY: \${{ secrets.UPDATER_SIGNING_KEY }}
+    UPDATER_GH_TOKEN: \${{ secrets.UPDATER_GH_TOKEN }}`);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tauri-updater-private — in-app updates from private GitHub repositories</title>
+    <meta
+      name="description"
+      content="Thin wrapper over tauri-plugin-updater that ships in-app updates for Tauri 2 apps distributed from private GitHub repositories. Build-time token, official API unchanged."
+    />
+    <meta property="og:title" content="tauri-updater-private" />
+    <meta
+      property="og:description"
+      content="In-app updates for Tauri 2 apps distributed from private GitHub repositories. One preset header on the official updater — no fork, no extra commands."
+    />
+    <meta property="og:type" content="website" />
+    <!-- Why: GitHub project Pages serves the site under /tauri-updater-private (see `base` in astro.config.mjs), so a root-absolute favicon path would 404; the regex tolerates BASE_URL with or without a trailing slash -->
+    <link rel="icon" type="image/svg+xml" href={import.meta.env.BASE_URL.replace(/\/?$/, '/') + 'favicon.svg'} />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href={import.meta.env.BASE_URL}>
+        <svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true">
+          <rect width="64" height="64" rx="14" fill="#151922" />
+          <path d="M32 14 L50 44 H14 Z" fill="none" stroke="#ffc131" stroke-width="6" stroke-linejoin="round" />
+          <path d="M32 27 V39 M26 33 L32 27 L38 33" stroke="#ffc131" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+        </svg>
+        tauri-updater-private
+      </a>
+      <nav>
+        <a href="#why">Why</a>
+        <a href="#quick-start">Quick start</a>
+        <a href="#security">Security</a>
+        <a class="gh" href={REPO}>GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section class="hero">
+        <p class="eyebrow">Tauri 2 · wraps the official updater plugin</p>
+        <h1>
+          Ship in-app updates from <em>private</em> GitHub&nbsp;repositories.
+        </h1>
+        <p class="lede">
+          The official updater returns <code>404</code> on private repos.
+          This crate embeds an <code>Authorization:&nbsp;Bearer</code> token at
+          build time and presets it on the official
+          <code>tauri-plugin-updater</code> — on both the manifest request and
+          the installer download. No fork. No extra commands. Your frontend
+          keeps the official JS API, unchanged.
+        </p>
+        <div class="badges" aria-label="Project badges">
+          <img src="https://github.com/j4rviscmd/tauri-updater-private/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+          <img src="https://img.shields.io/crates/v/tauri-updater-private.svg" alt="crates.io version" />
+          <img src="https://img.shields.io/npm/v/@tauri-apps/plugin-updater.svg" alt="official updater npm version" />
+          <img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="MIT license" />
+        </div>
+        <p class="install-note">Install <strong>both</strong> — on the Rust side this crate <em>and</em> a direct <code>tauri-plugin-updater</code> dependency (Tauri's ACL permission collection only sees direct dependencies); the frontend keeps the official <code>@tauri-apps/plugin-updater</code>, unchanged:</p>
+        <div class="install">
+          <pre class="chip"><span class="cmt"># 1 · Rust — src-tauri/Cargo.toml (both required)</span>
+[dependencies]
+tauri-updater-private = "0.1"
+tauri-plugin-updater  = "2"</pre>
+          <span class="plus" aria-hidden="true">+</span>
+          <pre class="chip"><span class="cmt"># 2 · npm — frontend (the official package)</span>
+npm i @tauri-apps/plugin-updater</pre>
+        </div>
+      </section>
+
+      <!-- Why -->
+      <section id="why" class="section">
+        <h2>One header is all it takes</h2>
+        <p class="section-lede">
+          The official updater fetches a <code>latest.json</code> manifest and
+          the installer asset over plain HTTPS. On a private repository both
+          requests are rejected with <code>404</code> unless an authenticated
+          token is attached. Nothing about the update flow needs to change —
+          only the transport.
+        </p>
+        <ol class="flow" aria-label="Update flow">
+          <li class="flow-node">
+            <p class="flow-title">Your app</p>
+            <p class="flow-sub"><code>check()</code> · <code>downloadAndInstall()</code><br />official JS API, zero changes</p>
+          </li>
+          <li class="flow-node accent">
+            <p class="flow-title">tauri-updater-private</p>
+            <p class="flow-sub"><code>Authorization: Bearer •••</code><br /><code>Accept: application/octet-stream</code></p>
+          </li>
+          <li class="flow-node">
+            <p class="flow-title">GitHub</p>
+            <p class="flow-sub">manifest via <code>raw.githubusercontent.com</code><br />asset via <code>api.github.com</code></p>
+          </li>
+          <li class="flow-node verify">
+            <p class="flow-title">minisign verify</p>
+            <p class="flow-sub"><code>pubkey</code> pinned in <code>tauri.conf.json</code><br />independent of transport auth</p>
+          </li>
+        </ol>
+        <p class="fine">
+          Update authenticity is unaffected: installers are still verified
+          against the minisign <code>pubkey</code> before anything is installed.
+          Transport auth and update signing are separate concerns — kept separate.
+        </p>
+      </section>
+
+      <!-- Quick start -->
+      <section id="quick-start" class="section">
+        <h2>Three steps to private updates</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-head">
+              <span class="step-no">1</span>
+              <div>
+                <h3>Point the updater at GitHub</h3>
+                <p><code>tauri.conf.json</code> — the manifest lives on your default branch.</p>
+              </div>
+            </div>
+            <pre class="code" data-file="tauri.conf.json"><code set:html={conf} /></pre>
+          </div>
+          <div class="step">
+            <div class="step-head">
+              <span class="step-no">2</span>
+              <div>
+                <h3>Register the plugin via this crate</h3>
+                <p>Token is embedded at build time from <code>UPDATER_GH_TOKEN</code>. Grant <code>updater:default</code> in your capability file.</p>
+              </div>
+            </div>
+            <pre class="code" data-file="src-tauri/src/lib.rs"><code set:html={rust} /></pre>
+          </div>
+          <div class="step">
+            <div class="step-head">
+              <span class="step-no">3</span>
+              <div>
+                <h3>Keep the official frontend API</h3>
+                <p>Headers are applied automatically — pass no options.</p>
+              </div>
+            </div>
+            <pre class="code" data-file="frontend"><code set:html={js} /></pre>
+          </div>
+        </div>
+        <div class="release">
+          <p class="step-note">
+            In your release workflow, export <code>UPDATER_GH_TOKEN</code> (a
+            long-lived fine-grained PAT — the Actions-default
+            <code>GITHUB_TOKEN</code> expires when the job ends and cannot be embedded):
+          </p>
+          <pre class="code" data-file=".github/workflows/release.yml"><code set:html={release} /></pre>
+        </div>
+        <aside class="callout warn">
+          <p><strong>Never pass <code>headers</code> from the frontend.</strong>
+          The JS <code>download</code>/<code>downloadAndInstall</code> options
+          <em>replace</em> the header map entirely, silently dropping the preset
+          <code>Authorization</code>. Call <code>check()</code>,
+          <code>download()</code>, <code>downloadAndInstall()</code> without a
+          <code>headers</code> option.</p>
+        </aside>
+      </section>
+
+      <!-- Verified topology -->
+      <section class="section">
+        <h2>A topology that survives contact with GitHub</h2>
+        <p class="section-lede">
+          Private-repo endpoints have sharp edges. This crate encodes the
+          combination verified end-to-end against a real private-repo Tauri 2
+          app on macOS (check → download → install → relaunch,
+          v0.1.0&nbsp;→&nbsp;v0.1.1), signature verification and version gating
+          included.
+        </p>
+        <ul class="facts">
+          <li>
+            <span class="tick" aria-hidden="true">✓</span>
+            <div>
+              <strong>Manifest:</strong>
+              <code>raw.githubusercontent.com/&#123;owner&#125;/&#123;repo&#125;/main/latest.json</code>
+              — Bearer honored. Committed to the default branch; cached ~5&nbsp;min after each push.
+            </div>
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true">✓</span>
+            <div>
+              <strong>Installer:</strong>
+              <code>api.github.com/repos/&#123;owner&#125;/&#123;repo&#125;/releases/assets/&#123;asset-id&#125;</code>
+              — the crate presets <code>Accept: application/octet-stream</code>; without it the API
+              returns asset metadata JSON instead of the binary.
+            </div>
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true">✓</span>
+            <div>
+              <strong>Known dead end:</strong>
+              <code>github.com/…/releases/latest/download/…</code> ignores
+              <code>Authorization</code> on private repos and returns
+              <code>404</code> to PATs. Don't fight it — the topology above is the verified path.
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Security -->
+      <section id="security" class="section">
+        <h2>Security posture, stated plainly</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>A stolen token can't ship malware</h3>
+            <p>Installers are verified against the minisign <code>pubkey</code>
+            pinned in <code>tauri.conf.json</code> before any install step.
+            A leaked token can read your repo — it cannot push an update to
+            your users.</p>
+          </div>
+          <div class="card">
+            <h3>Least-privilege by construction</h3>
+            <p>Fine-grained PAT scoped to the target repository only,
+            permission <strong>Contents: Read-only</strong>, with an expiry.
+            Application code never handles the token — it's embedded at build
+            time from a CI secret.</p>
+          </div>
+          <div class="card">
+            <h3>Honest about extraction, easy to rotate</h3>
+            <p>The embedded token can be pulled from a distributed binary with
+            <code>strings</code>. That trade-off is documented, not hidden:
+            rotate by replacing the secret and rebuilding. A dedicated
+            updates-only repo is documented as a future hardening path.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="cta">
+        <h2>Add private-repo updates in three lines of Cargo.toml.</h2>
+        <p class="install-note">Both required — the wrapper plus a direct official-plugin dependency; frontend keeps the official npm package:</p>
+        <div class="install">
+          <pre class="chip"><span class="cmt"># 1 · Rust — src-tauri/Cargo.toml</span>
+[dependencies]
+tauri-updater-private = "0.1"
+tauri-plugin-updater  = "2"</pre>
+          <span class="plus" aria-hidden="true">+</span>
+          <pre class="chip"><span class="cmt"># 2 · npm — official</span>
+npm i @tauri-apps/plugin-updater</pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        MIT · <a href="https://crates.io/crates/tauri-updater-private">crates.io</a>
+        · <a href={REPO}>GitHub</a>
+        · <a href={REPO + '#readme'}>Full documentation</a>
+      </p>
+      <p class="fine">Verified E2E against a real private-repo Tauri 2 app on macOS (darwin-aarch64).</p>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #0b0d10;
+    --panel: #11141a;
+    --panel-2: #151922;
+    --border: #232a37;
+    --text: #e8ebf0;
+    --muted: #97a1b2;
+    --accent: #ffc131;
+    --accent-dim: rgba(255, 193, 49, 0.12);
+    --green: #4ade80;
+    --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { color-scheme: dark; scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(900px 480px at 70% -10%, rgba(255, 193, 49, 0.07), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.08em 0.35em;
+    white-space: nowrap;
+  }
+
+  pre code { background: none; border: 0; padding: 0; white-space: pre; }
+
+  /* Inline code in prose blocks wraps (base code is nowrap). */
+  .lede code, .section-lede code, .fine code, .flow-sub code,
+  .step-note code, .callout code, .card code, .facts code { white-space: normal; }
+
+  a { color: var(--text); }
+  a:hover { color: var(--accent); }
+
+  /* Nav */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem max(1.25rem, calc((100% - 1080px) / 2));
+    background: rgba(11, 13, 16, 0.85);
+    backdrop-filter: blur(10px);
+    /* Why: -webkit- prefix kept for Safari, which only supports the prefixed backdrop-filter in older versions */
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .nav nav { display: flex; gap: 1.4rem; }
+  .nav nav a {
+    font-size: 0.92rem;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .nav nav a:hover { color: var(--accent); }
+  .nav nav a.gh {
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.25rem 0.85rem;
+  }
+  .nav nav a.gh:hover { border-color: var(--accent); color: var(--accent); }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 0 1.25rem; }
+
+  /* Hero */
+  .hero { padding: 5.5rem 0 4rem; max-width: 860px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-size: clamp(2.1rem, 5.2vw, 3.4rem);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.25rem;
+  }
+  h1 em { color: var(--accent); font-style: normal; }
+  .lede { font-size: 1.13rem; color: var(--muted); margin: 0 0 1.75rem; max-width: 46rem; }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.75rem; }
+  .badges img { height: 20px; }
+
+  .install-note { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.75rem; }
+  .install-note strong { color: var(--text); }
+  .install { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+  .plus {
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    border: 1px solid rgba(255, 193, 49, 0.4);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .chip {
+    flex: 1 1 320px;
+    max-width: 480px;
+    margin: 0;
+    padding: 0.9rem 1.1rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    overflow-x: auto;
+  }
+  .cmt { color: var(--muted); }
+
+  /* Sections */
+  .section { padding: 3.25rem 0; border-top: 1px solid var(--border); }
+  h2 {
+    font-size: clamp(1.45rem, 3vw, 1.9rem);
+    letter-spacing: -0.015em;
+    margin: 0 0 0.9rem;
+  }
+  .section-lede { color: var(--muted); max-width: 46rem; margin: 0 0 2rem; }
+  .fine { color: var(--muted); font-size: 0.92rem; }
+
+  /* Flow diagram */
+  /* Why: minmax(0, 1fr), not plain 1fr — grid tracks would floor at min-content,
+     and this page's nowrap `code` spans would then force horizontal overflow on
+     narrow viewports. Same pattern reused by .steps, .cards and the media queries below. */
+  .flow {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .flow-node {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+  }
+  .flow-node.accent { border-color: rgba(255, 193, 49, 0.5); background: linear-gradient(180deg, var(--accent-dim), var(--panel)); }
+  .flow-node.verify { border-color: rgba(74, 222, 128, 0.35); }
+  .flow-title { font-family: var(--mono); font-size: 0.86rem; font-weight: 600; margin: 0 0 0.5rem; }
+  .flow-node.accent .flow-title { color: var(--accent); }
+  .flow-node.verify .flow-title { color: var(--green); }
+  .flow-sub { font-size: 0.82rem; color: var(--muted); margin: 0; line-height: 1.55; }
+  .flow-sub code { font-size: 0.78rem; }
+
+  /* Steps */
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .step { display: flex; flex-direction: column; gap: 0.9rem; }
+  .step-head { display: flex; gap: 0.8rem; align-items: flex-start; }
+  .step-no {
+    flex: none;
+    width: 1.7rem;
+    height: 1.7rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    border: 1px solid rgba(255, 193, 49, 0.4);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .step h3 { font-size: 1rem; margin: 0 0 0.25rem; }
+  .step p, .step-note { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .step-note { max-width: 46rem; margin-bottom: 0.75rem; }
+
+  .code {
+    position: relative;
+    margin: 0;
+    flex: 1;
+    padding: 1.9rem 1.1rem 1rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+  .code[data-file]::before {
+    content: attr(data-file);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 0.4rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+  }
+  .release { margin-bottom: 1.5rem; }
+  .release .code { max-width: 640px; }
+
+  .callout {
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    font-size: 0.94rem;
+    max-width: 640px;
+  }
+  .callout.warn {
+    background: rgba(255, 193, 49, 0.06);
+    border: 1px solid rgba(255, 193, 49, 0.35);
+  }
+  .callout.warn strong { color: var(--accent); }
+
+  /* Verified facts */
+  .facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.9rem; max-width: 760px; }
+  .facts li { display: flex; gap: 0.85rem; align-items: flex-start; }
+  .facts .tick {
+    flex: none;
+    width: 1.45rem;
+    height: 1.45rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.4);
+    color: var(--green);
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+  .facts code { word-break: break-word; }
+
+  /* Security cards */
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.3rem 1.3rem 1.45rem;
+  }
+  .card h3 { font-size: 1.02rem; margin: 0 0 0.6rem; }
+  .card p { color: var(--muted); font-size: 0.92rem; margin: 0; }
+
+  /* CTA + footer */
+  .cta { padding: 4rem 0; border-top: 1px solid var(--border); }
+  .cta h2 { margin-bottom: 1.5rem; }
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 1.75rem 1.25rem 2.25rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+  .footer p { margin: 0.3rem 0; }
+  .footer a { color: var(--muted); }
+  .footer a:hover { color: var(--accent); }
+
+  @media (max-width: 860px) {
+    .flow, .steps, .cards { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .flow, .steps, .cards { grid-template-columns: minmax(0, 1fr); }
+    .hero { padding: 3.5rem 0 2.5rem; }
+    .nav nav a:not(.gh) { display: none; }
+  }
+</style>
