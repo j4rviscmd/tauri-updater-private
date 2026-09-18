@@ -1,8 +1,15 @@
 {
   "name": "tauri-updater-private",
   "version": "0.1.0",
+  "description": "In-app updates for Tauri 2 apps distributed from private GitHub repositories (thin wrapper over @tauri-apps/plugin-updater)",
   "license": "MIT",
   "repository": "https://github.com/j4rviscmd/tauri-updater-private",
+  "keywords": [
+    "tauri",
+    "updater",
+    "github",
+    "private"
+  ],
   "type": "module",
   "types": "./dist-js/index.d.ts",
   "main": "./dist-js/index.cjs",
@@ -13,7 +20,8 @@
     "require": "./dist-js/index.cjs"
   },
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "prepack": "npm run build"
   },
   "files": [
     "dist-js",
