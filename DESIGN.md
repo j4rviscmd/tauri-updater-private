@@ -2,13 +2,14 @@
 
 > Thin wrapper over the official `tauri-plugin-updater` that enables in-app updates for Tauri 2 applications distributed from **private GitHub repositories**.
 >
-> Status: design phase (2026-09-18). No implementation yet.
+> Status: implemented through Phase 3 (E2E verified 2026-09-18); Phase 4 (publish) pending.
 
 ## 1. Overview
 
 `tauri-updater-private` is a thin Rust crate (+ npm package) that configures the official [tauri-plugin-updater](https://github.com/tauri-apps/plugins-workspace/tree/dev/plugins/updater) with:
 
-- an `Authorization: Bearer <token>` header, embedded into the binary at build time from an environment variable, and
+- an `Authorization: Bearer <token>` header, embedded into the binary at build time from an environment variable,
+- plus an `Accept: application/octet-stream` header required for private-repo asset downloads (verified fact #3), and
 - nothing else.
 
 It registers the official updater plugin under its standard name, so the frontend uses the official `@tauri-apps/plugin-updater` JS API unchanged (`check()`, `download()`, `install()`, `downloadAndInstall()`).
