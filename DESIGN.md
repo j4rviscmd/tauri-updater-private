@@ -161,7 +161,7 @@ Token timeline (two distinct credentials — do not conflate):
 | 1. Rust core | `updater_builder()` + token embed + unit tests (header preset, missing-token error, override) | `cargo test` green; test app compiles with env set |
 | 2. npm package | re-export of `@tauri-apps/plugin-updater`, types, build via rollup or tsup | `npm pack` dry-run clean |
 | 3. E2E | example Tauri app + private repo release; manual check→download→install on macOS (Windows/Linux as available) | update applied end-to-end |
-| 4. Publish | crates.io + npm publish, README usage docs, security notes | installable from both registries |
+| 4. Publish | release-please driven: conventional commits → release PR (version + CHANGELOG + Cargo.toml/lock + package.json) → tag + GitHub Release → publish workflow (crates.io + npm) | installable from both registries |
 
 Phase status (2026-09-18): Phase 3 **done** — verified end-to-end against a real private-repo Tauri 2 app on macOS (darwin-aarch64): check → downloadAndInstall → relaunch, v0.1.0 → v0.1.1, signature verification and version gating working. Two premises were corrected along the way (verified fact #3 rewrite, §4.4 topology notes); the crate now presets `Accept: application/octet-stream` in addition to `Authorization`.
 
@@ -175,5 +175,5 @@ Phase status (2026-09-18): Phase 3 **done** — verified end-to-end against a re
 
 ## 9. Open TODOs
 
-- TODO: confirm crate name `tauri-updater-private` availability on crates.io at publish time (fallback: `tauri-plugin-updater-private`).
+- Resolved (2026-09-18): crate name `tauri-updater-private` is free on both crates.io and npm; `tauri-plugin-updater-private` fallback not needed.
 - TODO: E2E matrix — verify the raw.githubusercontent + asset-API topology on Windows/Linux (verified on macOS darwin-aarch64 only).

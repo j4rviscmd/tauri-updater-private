@@ -1,0 +1,22 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # Why: a PAT, not GITHUB_TOKEN — repo settings disallow PR creation
+          # with GITHUB_TOKEN, and GITHUB_TOKEN-opened PRs never trigger
+          # workflows, so the required `test` check would never pass under
+          # branch protection. Needs Contents:RW + Pull requests:RW on this
+          # repo only.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
