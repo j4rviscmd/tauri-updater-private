@@ -56,6 +56,13 @@ npm i tauri-updater-private
 .builder(|b| b.plugin(tauri_updater_private::updater_builder()?.build()))
 ```
 
+For local dev builds without the env var (which fail with `MissingToken`), pass a token explicitly:
+
+```rust
+use tauri_updater_private::TauriUpdaterPrivateBuilder;
+.plugin(TauriUpdaterPrivateBuilder::new().token("personal-access-token").updater_builder()?.build())
+```
+
 4. Keep using the official JS API:
 
 ```ts
