@@ -4,6 +4,8 @@
 [![Crates.io](https://img.shields.io/crates/v/tauri-updater-private.svg)](https://crates.io/crates/tauri-updater-private)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+**Landing page**: <https://j4rviscmd.github.io/tauri-updater-private/>
+
 In-app updates for [Tauri 2](https://v2.tauri.app/) applications distributed from **private GitHub repositories**.
 
 Thin wrapper over the official [`tauri-plugin-updater`](https://v2.tauri.app/plugin/updater/) that attaches an `Authorization: Bearer <token>` header — embedded into the binary at build time — plus the `Accept: application/octet-stream` header required for private-repo asset downloads, to both the update-manifest request and the installer download. Nothing else. No fork, no extra commands: the frontend keeps using the official `@tauri-apps/plugin-updater` JS API unchanged.
