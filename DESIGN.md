@@ -2,7 +2,7 @@
 
 > Thin wrapper over the official `tauri-plugin-updater` that enables in-app updates for Tauri 2 applications distributed from **private GitHub repositories**.
 >
-> Status: implemented through Phase 3 (E2E verified 2026-09-18); Phase 4 (publish) pending.
+> Status: all phases complete. v0.1.0 published to crates.io and npm (2026-09-18).
 
 ## 1. Overview
 
