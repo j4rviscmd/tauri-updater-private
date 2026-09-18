@@ -5,6 +5,7 @@ description = "Thin wrapper over tauri-plugin-updater enabling in-app updates fo
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/j4rviscmd/tauri-updater-private"
+documentation = "https://docs.rs/tauri-updater-private"
 readme = "README.md"
 keywords = ["tauri", "updater", "github", "private"]
 categories = ["gui"]
