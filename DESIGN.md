@@ -2,7 +2,7 @@
 
 > Thin wrapper over the official `tauri-plugin-updater` that enables in-app updates for Tauri 2 applications distributed from **private GitHub repositories**.
 >
-> Status: v0.1.0 published to crates.io (2026-09-18); npm package unpublished and removed (2026-09-19).
+> Status: published to crates.io; latest v0.1.1 (2026-09-19). npm package removed (2026-09-19).
 
 ## 1. Overview
 
@@ -88,8 +88,10 @@ impl TauriUpdaterPrivateBuilder {
 pub enum Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Re-export so apps can chain official builder calls (pubkey, target, …)
-/// with this crate as their only extra dependency.
+/// Re-export of the official crate so apps can chain further official-builder
+/// calls (e.g. `pubkey`, `target`) without guessing version alignment.
+/// Note: apps still need `tauri-plugin-updater` as a direct dependency for
+/// capability resolution (verified fact #6).
 pub use tauri_plugin_updater;
 ```
 
