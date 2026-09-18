@@ -77,9 +77,19 @@ pub fn updater_builder() -> Result<tauri_plugin_updater::Builder> {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct TauriUpdaterPrivateBuilder {
     token: Option<String>,
+}
+
+// Why: manual Debug so debug-printing the builder never reveals the token
+// (DESIGN.md §5: the crate must not expose the token), unlike a derived impl.
+impl std::fmt::Debug for TauriUpdaterPrivateBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TauriUpdaterPrivateBuilder")
+            .field("token", &self.token.as_ref().map(|_| "<redacted>"))
+            .finish()
+    }
 }
 
 impl TauriUpdaterPrivateBuilder {
@@ -152,6 +162,17 @@ mod tests {
                 .updater_builder(),
             Err(Error::Header(_))
         ));
+    }
+
+    #[test]
+    fn debug_output_masks_token() {
+        let builder = TauriUpdaterPrivateBuilder::new().token("ghp_secret");
+        let debug = format!("{builder:?}");
+        assert!(
+            !debug.contains("ghp_secret"),
+            "token leaked in Debug: {debug}"
+        );
+        assert!(debug.contains("<redacted>"));
     }
 
     #[test]
