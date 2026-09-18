@@ -145,7 +145,7 @@ Token timeline (two distinct credentials — do not conflate):
 
 | Phase | Scope | Done when |
 |---|---|---|
-| 0. Scaffold | cargo crate + npm package layout, LICENSE (MIT OR Apache-2.0), README (en), CI (fmt/clippy/test, npm build) | CI green on main |
+| 0. Scaffold | cargo crate + npm package layout, LICENSE (MIT), README (en), CI (fmt/clippy/test, npm build) | CI green on main |
 | 1. Rust core | `updater_builder()` + token embed + unit tests (header preset, missing-token error, override) | `cargo test` green; test app compiles with env set |
 | 2. npm package | re-export of `@tauri-apps/plugin-updater`, types, build via rollup or tsup | `npm pack` dry-run clean |
 | 3. E2E | example Tauri app + private repo release; manual check→download→install on macOS (Windows/Linux as available) | update applied end-to-end |

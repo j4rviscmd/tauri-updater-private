@@ -1,0 +1,24 @@
+[package]
+name = "tauri-updater-private"
+version = "0.1.0"
+description = "Thin wrapper over tauri-plugin-updater enabling in-app updates for Tauri 2 apps distributed from private GitHub repositories."
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/j4rviscmd/tauri-updater-private"
+readme = "README.md"
+keywords = ["tauri", "updater", "github", "private"]
+categories = ["gui"]
+exclude = [
+  "/guest-js",
+  "/package.json",
+  "/rollup.config.js",
+  "/tsconfig.json",
+]
+
+[dependencies]
+tauri-plugin-updater = "2"
+# Why: http and thiserror are unreferenced by the Phase 0 stub on purpose — they
+# are reserved for the Phase 1 core (DESIGN.md §4.3, §7): http for the preset
+# Authorization header value, thiserror for the updater_builder() error type.
+http = "1"
+thiserror = "2"
