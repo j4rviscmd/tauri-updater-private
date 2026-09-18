@@ -42,12 +42,14 @@ npm i tauri-updater-private
     "updater": {
       "pubkey": "<minisign public key>",
       "endpoints": [
-        "https://github.com/{owner}/{repo}/releases/latest/download/latest.json"
+        "https://raw.githubusercontent.com/{owner}/{repo}/main/latest.json"
       ]
     }
   }
 }
 ```
+
+> **Endpoint topology (verified E2E on a private repo):** `github.com/.../releases/latest/download/...` ignores `Authorization` on private repos (404). Use `raw.githubusercontent.com` for the manifest — so `latest.json` is committed to the default branch — and point its `platforms.*.url` at the asset API (`https://api.github.com/repos/{owner}/{repo}/releases/assets/{asset-id}`). This crate presets the required `Accept: application/octet-stream` alongside the `Authorization` header; without it the API returns asset metadata JSON instead of the binary. Note the asset ID changes every release, and raw.githubusercontent.com caches the manifest for ~5 minutes after each push.
 
 3. Register the plugin via this crate:
 
