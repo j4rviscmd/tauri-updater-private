@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/j4rviscmd/tauri-updater-private/compare/tauri-updater-private-v0.1.0...tauri-updater-private-v0.1.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* require direct tauri-plugin-updater dep; remove npm package ([#11](https://github.com/j4rviscmd/tauri-updater-private/issues/11)) ([a258c68](https://github.com/j4rviscmd/tauri-updater-private/commit/a258c6892b83a94c9dae09245b3d480e5ae9bbef))
+
 ## 0.1.0 (2026-09-18)
 
 
