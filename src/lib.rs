@@ -6,8 +6,9 @@
 //!
 //! It configures the official updater plugin with an
 //! `Authorization: Bearer <token>` header, embedded into the binary at
-//! build time from the `UPDATER_GH_TOKEN` environment variable, and
-//! nothing else. The frontend keeps using the official
+//! build time from the `UPDATER_GH_TOKEN` environment variable, plus an
+//! `Accept: application/octet-stream` header for private-repo asset
+//! downloads. The frontend keeps using the official
 //! `@tauri-apps/plugin-updater` JS API unchanged.
 //!
 //! See `DESIGN.md` for the full design rationale.
@@ -39,7 +40,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Returns the official updater [`tauri_plugin_updater::Builder`] with the
 /// `Authorization: Bearer <token>` header preset from the compile-time
-/// `UPDATER_GH_TOKEN`.
+/// `UPDATER_GH_TOKEN`, plus `Accept: application/octet-stream`.
 ///
 /// # Errors
 ///
@@ -106,7 +107,8 @@ impl TauriUpdaterPrivateBuilder {
     }
 
     /// Returns the official updater [`tauri_plugin_updater::Builder`] with
-    /// the `Authorization` header preset.
+    /// the `Authorization` and `Accept: application/octet-stream` headers
+    /// preset.
     ///
     /// # Errors
     ///
@@ -117,8 +119,17 @@ impl TauriUpdaterPrivateBuilder {
             .token
             .filter(|token| !token.is_empty())
             .ok_or(Error::MissingToken)?;
+        // Why: github.com/<owner>/<repo>/releases/download/... does NOT honor
+        // Authorization on private repos (browser cookies only) — the request
+        // 404s. The manifest must come from raw.githubusercontent.com (serves
+        // the body regardless of Accept) and the package from the
+        // api.github.com releases/assets endpoint, which only returns the
+        // binary (302 to a signed URL) with this Accept header — with
+        // application/vnd.github.raw it returns the asset metadata JSON
+        // instead, which breaks signature verification.
         Ok(tauri_plugin_updater::Builder::default()
-            .header("authorization", format!("Bearer {token}"))?)
+            .header("authorization", format!("Bearer {token}"))?
+            .header("accept", "application/octet-stream")?)
     }
 }
 

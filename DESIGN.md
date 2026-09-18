@@ -31,7 +31,11 @@ Findings from the official source (`plugins-workspace/plugins/updater`), which t
 
 1. **Headers set at plugin registration flow into both requests.** `tauri_plugin_updater::Builder::header()` stores headers in `UpdaterState` (`src/lib.rs:187-205`). `UpdaterExt::updater_builder()` seeds every `UpdaterBuilder` with those state headers (`src/lib.rs:88`). `Updater::check()` sends them on the manifest request and clones them onto the resulting `Update` (`src/updater.rs:598`); `Update::download()` sends the same headers on the asset GET (`src/updater.rs:680-743`).
 2. **JS `check({ headers })` merges (per-key insert), but JS `download`/`downloadAndInstall` `({ headers })` REPLACES the header map entirely** (`src/commands.rs:109-115`, `178-184`). If the frontend passes headers at download time, the preset `Authorization` is lost. → Usage rule: the frontend never passes `headers`.
-3. **GitHub release downloads accept token auth.** `GET https://github.com/{owner}/{repo}/releases/latest/download/latest.json` (and per-asset `releases/download/...` URLs) respond to `Authorization: Bearer <fine-grained PAT>` with a `302` to a pre-signed `objects.githubusercontent.com` URL. `reqwest` follows redirects by default; the signed target needs no auth, so the token is only exposed to `github.com`.
+3. **Token-authenticated endpoints (corrected by E2E, 2026-09-18).** The original research premise — that `github.com/{owner}/{repo}/releases/latest/download/...` accepts `Authorization: Bearer` — **did not hold**: on private repos that host serves browser cookies only and returns `404` to both fine-grained and classic PATs. The verified working topology is:
+   - **Manifest**: `https://raw.githubusercontent.com/{owner}/{repo}/main/latest.json` — Bearer honored, body served regardless of `Accept`.
+   - **Package**: `https://api.github.com/repos/{owner}/{repo}/releases/assets/{asset-id}` with `Accept: application/octet-stream` — Bearer honored; only this Accept yields the binary (302 to a signed `objects.githubusercontent.com` URL, which needs no auth). The API ignores `application/vnd.github.raw` here and returns the asset *metadata JSON* with HTTP 200 instead, which then fails signature verification.
+
+   Caveats: `raw.githubusercontent.com` caches ~5 min after each manifest push; the `releases/latest` API may briefly serve stale asset IDs right after `gh release create`.
 4. **Actions' default `GITHUB_TOKEN` cannot be embedded**: it expires when the workflow job ends. The embedded token must be a long-lived fine-grained PAT stored as a repository/organization secret.
 5. **Signature verification is independent of transport auth.** The downloaded installer is verified against the minisign `pubkey` from `tauri.conf.json` before any install step (`src/updater.rs:740`). A leaked or stolen token therefore cannot be used to push a malicious update to app users.
 
@@ -88,12 +92,17 @@ Minimal surface: the free function covers the CI path; the small builder exists 
     "updater": {
       "pubkey": "<minisign public key>",
       "endpoints": [
-        "https://github.com/{owner}/{repo}/releases/latest/download/latest.json"
+        "https://raw.githubusercontent.com/{owner}/{repo}/main/latest.json"
       ]
     }
   }
 }
 ```
+
+Topology notes (verified fact #3):
+
+- `latest.json` lives **on the default branch** (fetched via raw.githubusercontent.com), not as a release asset.
+- Its `platforms.*.url` must point at the **asset API** (`https://api.github.com/repos/{owner}/{repo}/releases/assets/{asset-id}`) — the crate presets the required `Accept: application/octet-stream`. The asset ID changes on every release, so the release flow must update `latest.json` on the default branch after creating each release.
 
 ```rust
 // src-tauri/src/lib.rs
@@ -137,6 +146,8 @@ Token timeline (two distinct credentials — do not conflate):
 ## 6. Constraints & gotchas
 
 - Frontend **must not** pass `headers` to `check`/`download`/`downloadAndInstall` — download-side headers replace the preset map and silently drop `Authorization` (verified fact #2). Documented prominently; a future npm minor may narrow the re-exported types to omit `headers`.
+- `github.com/.../releases/latest/download/...` URLs do not work on private repos (verified fact #3, E2E-corrected) — use raw.githubusercontent.com for the manifest and the asset API for packages.
+- `raw.githubusercontent.com` caches the manifest ~5 min after each push; the `releases/latest` API may briefly serve stale asset IDs right after `gh release create` — a freshly published update may take a few minutes to become visible.
 - Desktop only (inherited from the official updater; mobile install is a no-op).
 - HTTPS-only endpoints enforced by the official config validation.
 - `timeout` given to JS `check()` applies to the manifest request only; pass `timeout` to `downloadAndInstall` for the download (official behavior, inherited).
@@ -151,6 +162,8 @@ Token timeline (two distinct credentials — do not conflate):
 | 3. E2E | example Tauri app + private repo release; manual check→download→install on macOS (Windows/Linux as available) | update applied end-to-end |
 | 4. Publish | crates.io + npm publish, README usage docs, security notes | installable from both registries |
 
+Phase status (2026-09-18): Phase 3 **done** — verified end-to-end against a real private-repo Tauri 2 app on macOS (darwin-aarch64): check → downloadAndInstall → relaunch, v0.1.0 → v0.1.1, signature verification and version gating working. Two premises were corrected along the way (verified fact #3 rewrite, §4.4 topology notes); the crate now presets `Accept: application/octet-stream` in addition to `Authorization`.
+
 ## 8. Decisions (2026-09-18)
 
 1. Thin wrapper crate over official `tauri-plugin-updater`; no fork, no own commands. *(rationale: verified facts #1/#3 — a preset header is sufficient)*
@@ -162,5 +175,4 @@ Token timeline (two distinct credentials — do not conflate):
 ## 9. Open TODOs
 
 - TODO: confirm crate name `tauri-updater-private` availability on crates.io at publish time (fallback: `tauri-plugin-updater-private`).
-- TODO: E2E matrix — verify Bearer + redirect flow on Windows/Linux (research validated macOS/Linux curl paths; Windows reqwest behavior assumed identical).
-- TODO: consider GitHub Contents API fallback (`api.github.com/repos/.../releases/latest`) if the web `releases/latest/download` endpoint ever rejects token auth.
+- TODO: E2E matrix — verify the raw.githubusercontent + asset-API topology on Windows/Linux (verified on macOS darwin-aarch64 only).
