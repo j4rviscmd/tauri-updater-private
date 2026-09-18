@@ -2,38 +2,40 @@
 
 [![CI](https://github.com/j4rviscmd/tauri-updater-private/actions/workflows/ci.yml/badge.svg)](https://github.com/j4rviscmd/tauri-updater-private/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/tauri-updater-private.svg)](https://crates.io/crates/tauri-updater-private)
-[![npm](https://img.shields.io/npm/v/tauri-updater-private.svg)](https://www.npmjs.com/package/tauri-updater-private)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 In-app updates for [Tauri 2](https://v2.tauri.app/) applications distributed from **private GitHub repositories**.
 
-Thin wrapper over the official [`tauri-plugin-updater`](https://v2.tauri.app/plugin/updater/) that attaches an `Authorization: Bearer <token>` header — embedded into the binary at build time — to both the update-manifest request and the installer download. Nothing else. No fork, no extra commands: the frontend keeps using the official `@tauri-apps/plugin-updater` JS API unchanged.
+Thin wrapper over the official [`tauri-plugin-updater`](https://v2.tauri.app/plugin/updater/) that attaches an `Authorization: Bearer <token>` header — embedded into the binary at build time — plus the `Accept: application/octet-stream` header required for private-repo asset downloads, to both the update-manifest request and the installer download. Nothing else. No fork, no extra commands: the frontend keeps using the official `@tauri-apps/plugin-updater` JS API unchanged.
 
 ## Why
 
-The official updater fetches a `latest.json` manifest and the installer asset over plain HTTPS. For a private GitHub repository both requests return `404` unless an authenticated token is attached. This crate presets that header on the official plugin so the standard update flow works against private releases.
+The official updater fetches a `latest.json` manifest and the installer asset over plain HTTPS. For a private GitHub repository both requests return `404` unless an authenticated token is attached. This crate presets those headers on the official plugin so the standard update flow works against private releases.
 
 Update authenticity is unaffected: installers are still verified against the minisign `pubkey` pinned in `tauri.conf.json`, independent of transport auth.
 
 ## Install
 
-Rust (`src-tauri/Cargo.toml`):
+Rust (`src-tauri/Cargo.toml`) — **both lines are required**:
 
 ```toml
 [dependencies]
 tauri-updater-private = "0.1"
+tauri-plugin-updater  = "2"
 ```
 
-npm (pure re-export of the official package):
+> `tauri-plugin-updater` must be a **direct** dependency even though this crate depends on it too: Tauri collects plugin permissions (ACL) via cargo build-script metadata, which only propagates to direct dependents. Without the direct dependency, `updater:default` in your capability fails to resolve at build time.
+
+Frontend — use the official package directly:
 
 ```sh
-npm i tauri-updater-private
+npm i @tauri-apps/plugin-updater
 ```
 
 ## Usage
 
 1. Create a fine-grained PAT: scope it to the target repository only, permission **Contents: Read-only**, with an expiry. Store it as a repository/organization secret `UPDATER_GH_TOKEN`.
-2. Point the updater endpoints at the GitHub release:
+2. Point the updater endpoints at the raw manifest (see the topology note below):
 
 ```jsonc
 // tauri.conf.json
@@ -49,8 +51,6 @@ npm i tauri-updater-private
 }
 ```
 
-> **Endpoint topology (verified E2E on a private repo):** `github.com/.../releases/latest/download/...` ignores `Authorization` on private repos (404). Use `raw.githubusercontent.com` for the manifest — so `latest.json` is committed to the default branch — and point its `platforms.*.url` at the asset API (`https://api.github.com/repos/{owner}/{repo}/releases/assets/{asset-id}`). This crate presets the required `Accept: application/octet-stream` alongside the `Authorization` header; without it the API returns asset metadata JSON instead of the binary. Note the asset ID changes every release, and raw.githubusercontent.com caches the manifest for ~5 minutes after each push.
-
 3. Register the plugin via this crate:
 
 ```rust
@@ -65,10 +65,10 @@ use tauri_updater_private::TauriUpdaterPrivateBuilder;
 .plugin(TauriUpdaterPrivateBuilder::new().token("personal-access-token").updater_builder()?.build())
 ```
 
-4. Keep using the official JS API:
+4. Add `updater:default` to your capability file and keep using the official JS API:
 
 ```ts
-import { check } from 'tauri-updater-private';
+import { check } from '@tauri-apps/plugin-updater';
 const update = await check();        // Authorization header applied automatically
 await update?.downloadAndInstall();  // ...also on the asset download
 ```
@@ -83,6 +83,10 @@ await update?.downloadAndInstall();  // ...also on the asset download
 ```
 
 > The Actions-default `GITHUB_TOKEN` cannot be embedded — it expires when the job ends. Use a long-lived fine-grained PAT and rotate it.
+
+## Endpoint topology (verified E2E on a private repo)
+
+`github.com/.../releases/latest/download/...` ignores `Authorization` on private repos (404). Use `raw.githubusercontent.com` for the manifest — so `latest.json` is committed to the default branch — and point its `platforms.*.url` at the asset API (`https://api.github.com/repos/{owner}/{repo}/releases/assets/{asset-id}`). This crate presets the required `Accept: application/octet-stream`; without it the API returns asset metadata JSON instead of the binary. Note the asset ID changes every release, and raw.githubusercontent.com caches the manifest for ~5 minutes after each push.
 
 ## Important: never pass `headers` from the frontend
 

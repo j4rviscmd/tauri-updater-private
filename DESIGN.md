@@ -2,11 +2,11 @@
 
 > Thin wrapper over the official `tauri-plugin-updater` that enables in-app updates for Tauri 2 applications distributed from **private GitHub repositories**.
 >
-> Status: v0.1.0 published to crates.io and npm (2026-09-18).
+> Status: v0.1.0 published to crates.io (2026-09-18); npm package unpublished and removed (2026-09-19).
 
 ## 1. Overview
 
-`tauri-updater-private` is a thin Rust crate (+ npm package) that configures the official [tauri-plugin-updater](https://github.com/tauri-apps/plugins-workspace/tree/dev/plugins/updater) with:
+`tauri-updater-private` is a thin Rust crate that configures the official [tauri-plugin-updater](https://github.com/tauri-apps/plugins-workspace/tree/dev/plugins/updater) with:
 
 - an `Authorization: Bearer <token>` header, embedded into the binary at build time from an environment variable,
 - plus an `Accept: application/octet-stream` header required for private-repo asset downloads (verified fact #3), and
@@ -14,7 +14,7 @@
 
 It registers the official updater plugin under its standard name, so the frontend uses the official `@tauri-apps/plugin-updater` JS API unchanged (`check()`, `download()`, `install()`, `downloadAndInstall()`).
 
-Distribution: crates.io ([tauri-updater-private](https://crates.io/crates/tauri-updater-private)) and npm ([tauri-updater-private](https://www.npmjs.com/package/tauri-updater-private)), public repo, English docs — same developer experience as other Tauri plugins. Releases are cut by release-please from conventional commits; the publish workflow ships to both registries on each GitHub release.
+Distribution: crates.io ([tauri-updater-private](https://crates.io/crates/tauri-updater-private)), public repo, English docs — same developer experience as other Tauri plugins. Releases are cut by release-please from conventional commits; the publish workflow ships to crates.io on each GitHub release. An npm re-export package existed at v0.1.0 and was **unpublished** (decision 2026-09-19): it added nothing — the frontend uses `@tauri-apps/plugin-updater` directly, and the cargo side needs the official crate as a direct dependency anyway (verified fact #6).
 
 ## 2. Problem
 
@@ -39,6 +39,7 @@ Findings from the official source (`plugins-workspace/plugins/updater`), which t
    Caveats: `raw.githubusercontent.com` caches ~5 min after each manifest push; the `releases/latest` API may briefly serve stale asset IDs right after `gh release create`.
 4. **Actions' default `GITHUB_TOKEN` cannot be embedded**: it expires when the workflow job ends. The embedded token must be a long-lived fine-grained PAT stored as a repository/organization secret.
 5. **Signature verification is independent of transport auth.** The downloaded installer is verified against the minisign `pubkey` from `tauri.conf.json` before any install step (`src/updater.rs:740`). A leaked or stolen token therefore cannot be used to push a malicious update to app users.
+6. **Plugin ACL collection only sees direct dependencies (E2E-verified, 2026-09-18).** Tauri collects plugin permissions via cargo build-script metadata (`DEP_<links>_*` env vars in `tauri-utils/src/acl/build.rs::read_permissions()`), and cargo propagates that metadata to direct dependents only ("pass it to the immediate consuming crate"). An app depending on this crate alone cannot resolve `updater:default` in its capability — apps must list `tauri-plugin-updater` as a **direct** dependency alongside this crate. The wrapper cannot absorb this: the official crate owns the `links = "tauri-plugin-updater"` name, which cargo forbids duplicating, and a different links name would namespace the permissions wrong.
 
 ## 4. Architecture
 
@@ -57,7 +58,7 @@ Findings from the official source (`plugins-workspace/plugins/updater`), which t
 
 - **No fork.** The crate does not copy updater code; it depends on `tauri-plugin-updater` and returns its `Builder` pre-configured.
 - **No own commands / permissions / ACL.** Commands remain `plugin:updater|*`; apps grant `updater:default` in capabilities exactly as with the official plugin.
-- **npm package = pure re-export** of `@tauri-apps/plugin-updater`, so the install convention `npm i tauri-updater-private` works and private-specific helpers can be added later.
+- **No npm package (removed 2026-09-19).** The v0.1.0 re-export of `@tauri-apps/plugin-updater` added no value and was unpublished; the frontend imports the official npm package directly.
 
 ### 4.2 Token embedding
 
@@ -154,7 +155,8 @@ Token timeline (two distinct credentials — do not conflate):
 
 ## 6. Constraints & gotchas
 
-- Frontend **must not** pass `headers` to `check`/`download`/`downloadAndInstall` — download-side headers replace the preset map and silently drop `Authorization` (verified fact #2). Documented prominently; a future npm minor may narrow the re-exported types to omit `headers`.
+- Frontend **must not** pass `headers` to `check`/`download`/`downloadAndInstall` — download-side headers replace the preset map and silently drop `Authorization` (verified fact #2). Documented prominently.
+- Apps must depend on `tauri-plugin-updater` **directly** in addition to this crate, or capability resolution fails (verified fact #6).
 - `github.com/.../releases/latest/download/...` URLs do not work on private repos (verified fact #3, E2E-corrected) — use raw.githubusercontent.com for the manifest and the asset API for packages.
 - `raw.githubusercontent.com` caches the manifest ~5 min after each push; the `releases/latest` API may briefly serve stale asset IDs right after `gh release create` — a freshly published update may take a few minutes to become visible.
 - Desktop only (inherited from the official updater; mobile install is a no-op).
@@ -165,7 +167,7 @@ Token timeline (two distinct credentials — do not conflate):
 
 1. Thin wrapper crate over official `tauri-plugin-updater`; no fork, no own commands. *(rationale: verified facts #1/#3 — a preset header is sufficient)*
 2. Token: fine-grained PAT (Contents: Read-only), app repo direct — releases stay in the app repository. Dedicated updates-repo separation documented as future hardening only.
-3. Repo public; distribution via crates.io **and** npm under the name `tauri-updater-private` (same name on both registries).
+3. Repo public; distribution via **crates.io only** as `tauri-updater-private`. *(revised 2026-09-19: the npm re-export package published at v0.1.0 was unpublished — it carried no functionality, and the "one name on both registries" convention lost its meaning once apps had to depend on the official crates directly anyway, see verified fact #6)*
 4. Repo language: English (`.language`), docs in English.
 5. Env var name: `UPDATER_GH_TOKEN`.
 6. Releases: release-please (rust strategy) from conventional commits; PAT-backed because GITHUB_TOKEN cannot open mergeable PRs under this repo's branch protection; registry publishing on release published. Versioning keeps release-please defaults (a breaking change during 0.x bumps to 1.0.0).

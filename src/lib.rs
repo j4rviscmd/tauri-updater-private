@@ -15,8 +15,10 @@
 //!
 //! [`tauri-plugin-updater`]: https://github.com/tauri-apps/plugins-workspace/tree/dev/plugins/updater
 
-/// Re-export so apps can chain further official-builder calls
-/// (e.g. `pubkey`, `target`) with this crate as their only extra dependency.
+/// Re-export of the official crate so apps can chain further official-builder
+/// calls (e.g. `pubkey`, `target`) without guessing version alignment.
+/// Note: apps must still depend on `tauri-plugin-updater` directly — plugin
+/// permissions (ACL) are collected from direct dependencies only.
 pub use tauri_plugin_updater;
 
 /// Errors returned when presetting the Authorization header fails.

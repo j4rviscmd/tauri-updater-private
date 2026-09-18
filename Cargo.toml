@@ -9,12 +9,6 @@ documentation = "https://docs.rs/tauri-updater-private"
 readme = "README.md"
 keywords = ["tauri", "updater", "github", "private"]
 categories = ["gui"]
-exclude = [
-  "/guest-js",
-  "/package.json",
-  "/rollup.config.js",
-  "/tsconfig.json",
-]
 
 [dependencies]
 tauri-plugin-updater = "2"
