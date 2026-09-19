@@ -4,3 +4,5 @@
 /site/node_modules/
 /site/dist/
 /site/.astro/
+# Why: playwright-mcp browser sessions auto-create this dir at the repo root (runtime console-*.log artifacts only, not project source); without this entry it shows up as untracked noise in git status and risks an accidental commit (see .playwright-mcp/ contents)
+/.playwright-mcp/
