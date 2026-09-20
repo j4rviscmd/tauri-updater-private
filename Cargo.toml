@@ -1,6 +1,6 @@
 [package]
 name = "tauri-updater-private"
-version = "0.1.1"
+version = "0.2.0"
 description = "Thin wrapper over tauri-plugin-updater enabling in-app updates for Tauri 2 apps distributed from private GitHub repositories."
 edition = "2021"
 license = "MIT"

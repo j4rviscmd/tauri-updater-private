@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/j4rviscmd/tauri-updater-private/compare/tauri-updater-private-v0.1.1...tauri-updater-private-v0.2.0) (2026-09-19)
+
+
+### Features
+
+* add Astro landing page for GitHub Pages ([#14](https://github.com/j4rviscmd/tauri-updater-private/issues/14)) ([6a1f2d1](https://github.com/j4rviscmd/tauri-updater-private/commit/6a1f2d1367ee7302ae447a32e8b5b325c6cb053a))
+
 ## [0.1.1](https://github.com/j4rviscmd/tauri-updater-private/compare/tauri-updater-private-v0.1.0...tauri-updater-private-v0.1.1) (2026-09-18)
 
 
